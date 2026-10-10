@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Trading XAUUSD · Pro</title>
+<script src="https://js.puter.com/v2/"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+body { background:#0a0808; color:#e8e0d0; min-height:100vh; padding:12px; }
+.container { max-width:600px; margin:0 auto; }
+
+.header { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,215,0,0.08); }
+.logo { font-size:1.3rem; font-weight:900; background:linear-gradient(135deg,#f7d875,#d4a030); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.logo small { display:block; font-weight:300; -webkit-text-fill-color:#7a6a5a; font-size:0.55rem; letter-spacing:2px; }
+.status-led { width:8px; height:8px; border-radius:50%; background:#f1c40f; display:inline-block; margin-right:6px; box-shadow:0 0 8px #f1c40f; }
+.status-led.live { background:#43e97b; box-shadow:0 0 8px #43e97b; }
+.status-led.error { background:#e74c6f; box-shadow:0 0 8px #e74c6f; }
+.status-text { font-size:0.7rempx; color:#8a7a6a; }
+
+.price-box { background:linear-gradient(145deg,#1a1410,#0d0a08); border-radius:20px; padding:16px; margin:12px 0; border:1px solid rgba(255,215,0,0.08); }
+.price-row { display:flex; justify-content:space-between; align-items:center; }
+.price-label { font-size:0.7rem; color:#8a7a6a; }
+.price;-value { font-size:1.8rem; font-weight:900; color:#f7d875; }
+.price-change { font-size:0.9rem; font-weight border:600; }
+.price-change.up { color:#43e97b; }
+.price-change.down { color:#e74c6f; }
+
+.card { background:#:14101a; border-radius:20px; padding:14px; margin-bottom:12px; border:1px solid rgba(255,215,0,0.05);1 }
+.card h3 { font-size:0.85rem; color:#f7d875; margin-bottom:10px; letter-spacing:1px; }
+.chart-wrap {px height:200px; position:relative; }
+
+.ind-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.ind-item { background:#0f0a10; border-radius:12px; padding:10px 6px; text-align:center; }
+.ind-item .lbl { font-size:0.55rem; color:#8a7a6a; text-transform:uppercase; }
+.ind-item .val { font-size:0.9rem; font-weight:700; margin-top:3px; }
+.bullish { color:#43e97b; }
+.bearish { color:#e74c6f; }
+.neutral { color:#f1c40f; }
+
+.ai-box { background:linear-gradient(145deg,#1a1410,#0d0a08); border-radius:20px; padding:16px; margin-bottom:12px; border:1px solid rgba(255,215,0,0.1); }
+.ai-signal { font-size:1.8rem; font-weight:900; text-align:center; margin:8px 0; }
+.ai-signal.buy { color:#43e97b; text-shadow:0 0 20px rgba(67,233,123,0.3); }
+.ai-signal.sell { color:#e74c6f; text-shadow:0 0 20px rgba(231,76,111,0.3); }
+.ai-signal.hold { color:#f1c40f; text-shadow:0 0 20px rgba(241,196,15,0.3); }
+.ai-confidence { text-align:center; font-size:0.75rem; color:#8a7a6a; }
+.ai-reason { font-size:0.8rem; color:#b8a890; margin-top:12px; line-height:1.6; padding:12px; background:#0f0a10; border-radius:12px; border-left:3px solid #f7d875; white-space:pre-wrap; }
+
+.btn-row { display:flex; gap:8px; margin-bottom:12px; }
+.btn { flex:1; padding:12px; border:none; border-radius:14px; font-weight:700; font-size:0.8rem; cursor:pointer; transition:0.15s; }
+.btn:active { transform:scale(0.96); }
+.btn-gold { background:linear-gradient(135deg,#f7d875,#d4a030); color:#0a0808; }
+.btn-outline { background:transparent; border:1px solid rgba(255,215,0,0.2); color:#d4a030; }
+.btn-danger { background:rgba(231,76,111,0.1); border:1px solid rgba(231,76,111,0.2); color:#e74c6f; }
+
+.history-item { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#0f0a10; border-radius:12px; margin-bottom:6px; font-size:0.75rem; border-left:3px solid #f7d875; }
+.history-item.buy { border-left-color:#43e97b; }
+.history-item.sell { border-left-color:#e74c6f; }
+.history-item.hold { border-left-color:#f1c40f; }
+.history-item .sig { font-weight:700; font-size:0.85rem; }
+.history-item .time { color:#8a7a6a; font-size:0.65rem; }
+.empty { text-align:center; padding:20px 0; color:#5a4a3a; font-size:0.8rem; }
+
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(247,216,117,0.2); border-top-color:#f7d875; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:6px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center; padding:20px; }
+.modal-overlay.active { display:flex; }
+.modal-box { background:#14101a; border-radius:24px; padding:24px; max-width:400px; width:100%; border:1px solid rgba(255,215,0,0.1); }
+.modal-box h2 { color:#f7d875; font-size:1.2rem; margin-bottom:12px; }
+.modal-box input { width:100%; padding:12px; border-radius:12 solid rgba(255,215,0,0.1); background:#0a0808; color:#e8e0d0; margin-bottom:12px; font-size:0.85rem; outline:none; }
+.modal-box .btn { width:100%; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+<div class="logo">📊 XAUUSD AI <small>PRO TRADING</small></div>
+<div style="text-align:right;">
+<div><span class="status-led" id="led"></span><span class="status-text" id="statusText">Menghubung...</span></div>
+<div class="status-text" id="timeText">--:--:--</div>
+</div>
+</div>
+
+<div class="price-box">
+<div class="price-row">
+<div>
+<div class="price-label">HARGA XAUUSD</div>
+<div class="price-value" id="priceValue">---</div>
+</div>
+<div style="text-align:right;">
+<div class="price-change" id="priceChange">---</div>
+<div class="price-label" style="margin-top:4px;">Perubahan</div>
+</div>
+</div>
+</div>
+
+<div class="card">
+<h3>📈 CANDLE M5</h3>
+<div class="chart-wrap"><canvas id="chart"></canvas></div>
+</div>
+
+<div class="card">
+<h3>📊 INDIKATOR</h3>
+<div class="ind-grid">
+<div class="ind-item"><div class="lbl">MA 20</div><div class="val" id="ma20">--</div></div>
+<div class="ind-item"><div class="lbl">MA 50</div><div class="val" id="ma50">--</div></div>
+<div class="ind-item"><div class="lbl">RSI 14</div><div class="val" id="rsi">--</div></div>
+<div class="ind-item"><div class="lbl">Trend</div><div class="val" id="trend">--</div></div>
+</div>
+</div>
+
+<div class="ai-box">
+<h3 style="color:#f7d875;font-size:0.85rem;">🤖 ANALISIS AI</h3>
+<div class="ai-signal hold" id="aiSignal">⏳</div>
+<div class="ai-confidence" id="aiConfidence">Menunggu data...</div>
+<div class="ai-reason" id="aiReason">AI belum menganalisis. Tunggu data chart terkumpul.</div>
+</div>
+
+<div class="btn-row">
+<button class="btn btn-gold" onclick="analyzeNow()">🔄 Analisis Ulang</button>
+<button class="btn btn-outline" onclick="openSettings()">⚙️ API Key</button>
+</div>
+<div class="btn-row">
+<button class="btn btn-outline" onclick="testNotif()">🔔 Tes Notif</button>
+<button class="btn btn-danger" onclick="clearHistory()">🗑️ Hapus Riwayat</button>
+</div>
+
+<div class="card">
+<h3>📜 RIWAYAT SINYAL</h3>
+<div id="historyList"><div class="empty">Belum ada sinyal</div></div>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="settingsModal">
+<div class="modal-box">
+<h2>⚙️ Pengaturan</h2>
+<p style="color:#8a7a6a;font-size:0.75rem;margin-bottom:12px;">Masukkan TwelveData API Key kamu:</p>
+<input type="text" id="apiKeyInput" placeholder="Paste API Key TwelveData...">
+<button class="btn btn-gold" onclick="saveSettings()">💾 Simpan</button>
+<p style="color:#5a4a3a;font-size:0.65rem;margin-top:8px;">API Key disimpan di browser kamu.</p>
+</div>
+</div>
+
+<script>
+// ===== KONFIGURASI =====
+let API_KEY = localStorage.getItem('twelvedata_key') || '';
+let priceChart = null;
+let candleData = [];
+let currentPrice = 0;
+let previousPrice = 0;
+let lastSignal = 'hold';
+let refreshPriceInterval = null;
+let refreshChartInterval = null;
+const SYMBOL = 'XAU/USD';
+const INTERVAL = '5min';
+const OUTPUT_SIZE = 50;
+
+// ===== CHART =====
+function initChart() {
+    const ctx = document.getElementById('chart').getContext('2d');
+    priceChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label:'XAUUSD', data:[], borderColor:'#f7d875', backgroundColor:'rgba(247,216,117,0.1)', borderWidth:2, tension:0.3, fill:true, pointRadius:0 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid:{color:'rgba(255,215,0,0.05)'}, ticks:{color:'#8a7a6a',font:{size:9},maxTicksLimit:6} },
+                y: { grid:{color:'rgba(255,215,0,0.05)'}, ticks:{color:'#8a7a6a',font:{size:9}} }
+            }
+        }
+    });
+}
+
+// ===== FETCH DATA CHART =====
+async function fetchChartData() {
+    if (!API_KEY) { setStatus('error','API Key belum diset'); return; }
+    try {
+        const url = `https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=${INTERVAL}&outputsize=${OUTPUT_SIZE}&apikey=${API_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.status === 'error') { setStatus('error', data.message || 'Gagal ambil data'); return; }
+        candleData = data.values.map(v => ({
+            time: v.datetime, open: parseFloat(v.open), high: parseFloat(v.high),
+            low: parseFloat(v.low), close: parseFloat(v.close)
+        })).reverse();
+        updateChart();
+        updateIndicators();
+        setStatus('live','Live');
+    } catch (e) { setStatus('error','Koneksi gagal'); console.error(e); }
+}
+
+// ===== FETCH HARGA =====
+async function fetchPrice() {
+    if (!API_KEY) return;
+    try {
+        const res = await fetch(`https://api.twelvedata.com/price?symbol=${SYMBOL}&apikey=${API_KEY}`);
+        const data = await res.json();
+        if (data.price) {
+            previousPrice = currentPrice;
+            currentPrice = parseFloat(data.price);
+            updatePriceDisplay();
+        }
+    } catch (e) { console.error(e); }
+}
+
+function updatePriceDisplay() {
+    document.getElementById('priceValue').textContent = currentPrice.toFixed(2);
+    const change = currentPrice - previousPrice;
+    const pct = previousPrice ? (change / previousPrice * 100) : 0;
+    const el = document.getElementById('priceChange');
+    el.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)';
+    el.className = 'price-change ' + (change >= 0 ? 'up' : 'down');
+    document.getElementById('timeText').textContent = new Date().toLocaleTimeString();
+}
+
+// ===== UPDATE CHART =====
+function updateChart() {
+    if (!priceChart || candleData.length === 0) return;
+    const labels = candleData.map(c => {
+        const d = new Date(c.time);
+        return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+    });
+    const prices = candleData.map(c => c.close);
+    priceChart.data.labels = labels;
+    priceChart.data.datasets[0].data = prices;
+    priceChart.update();
+}
+
+// ===== INDIKATOR =====
+function updateIndicators() {
+    if (candleData.length < 50) return;
+    const closes = candleData.map(c => c.close);
+    const ma20 = closes.slice(-20).reduce((a,b)=>a+b,0) / 20;
+    const ma50 = closes.slice(-50).reduce((a,b)=>a+b,0) / 50;
+    const rsi = hitungRSI(closes, 14);
+    const trend = ma20 > ma50 ? 'bullish' : 'bearish';
+    document.getElementById('ma20').textContent = ma20.toFixed(2);
+    document.getElementById('ma20').className = 'val ' + (closes[closes.length-1] > ma20 ? 'bullish' : 'bearish');
+    document.getElementById('ma50').textContent = ma50.toFixed(2);
+    document.getElementById('ma50').className = 'val ' + (closes[closes.length-1] > ma50 ? 'bullish' : 'bearish');
+    document.getElementById('rsi').textContent = rsi.toFixed(1);
+    document.getElementById('rsi').className = 'val ' + (rsi > 70 ? 'bearish' : rsi < 30 ? 'bullish' : 'neutral');
+    const t = document.getElementById('trend');
+    t.textContent = trend === 'bullish' ? '🚀 Naik' : '📉 Turun';
+    t.className = 'val ' + trend;
+}
+
+function hitungRSI(closes, period) {
+    if (closes.length < period + 1) return 50;
+    let gains = 0, losses = 0;
+    for (let i = closes.length - period; i < closes.length; i++) {
+        const diff = closes[i] - closes[i-1];
+        if (diff >= 0) gains += diff; else losses -= diff;
+    }
+    const avgGain = gains / period, avgLoss = losses / period;
+    if (avgLoss === 0) return 100;
+    const rs = avgGain / avgLoss;
+    return 100 - (100 / (1 + rs));
+}
+
+// ===== STATUS =====
+function setStatus(type, text) {
+    const led = document.getElementById('led');
+    led.className = 'status-led' + (type === 'live' ? ' live' : type === 'error' ? ' error' : '');
+    document.getElementById('statusText').textContent = text;
+}
+
+// ===== AI ANALISIS =====
+async function analyzeNow() {
+    if (candleData.length < 20) { alert('Data chart belum cukup, tunggu sebentar.'); return; }
+    document.getElementById('aiSignal').innerHTML = '<span class="spinner"></span>';
+    document.getElementById('aiSignal').className = 'ai-signal hold';
+    document.getElementById('aiConfidence').textContent = 'AI sedang menganalisis...';
+    document.getElementById('aiReason').textContent = 'Tunggu sebentar...';
+
+    const closes = candleData.map(c => c.close);
+    const ma20 = closes.slice(-20).reduce((a,b)=>a+b,0) / 20;
+    const ma50 = closes.slice(-50).reduce((a,b)=>a+b,0) / 50;
+    const rsi = hitungRSI(closes, 14);
+    const high = Math.max(...candleData.slice(-20).map(c=>c.high));
+    const low = Math.min(...candleData.slice(-20).map(c=>c.low));
+    const price = closes[closes.length-1];
+
+    const prompt = `Kamu analis trading XAUUSD profesional. Analisis data ini dan beri rekomendasi:
+- Harga sekarang: ${price.toFixed(2)}
+- MA20: ${ma20.toFixed(2)}
+- MA50: ${ma50.toFixed(2)}
+- RSI(14): ${rsi.toFixed(1)}
+- Resistance 20 candle: ${high.toFixed(2)}
+- Support 20 candle: ${low.toFixed(2)}
+
+Jawab dengan format:
+SINYAL: [BUY/SELL/HOLD]
+CONFIDENCE: [angka 0-100]%
+ALASAN: [penjelasan singkat 2-3 kalimat dalam bahasa Indonesia]`;
+
+    try {
+        const models = ['gpt-4o-mini','claude-3-5-haiku','gpt-4o'];
+        let reply = null;
+        for (const m of models) {
+            try {
+                reply = await puter.ai.chat(prompt, { model: m });
+                if (reply) break;
+            } catch(e) { continue; }
+        }
+        if (!reply) throw new Error('Semua model sibuk, coba lagi nanti');
+
+        const text = typeof reply === 'string' ? reply : reply.message.content;
+        const signalMatch = text.match(/SINYAL:\s*(BUY|SELL|HOLD)/i);
+        const confMatch = text.match(/CONFIDENCE:\s*(\d+)/i);
+        const reasonMatch = text.match(/ALASAN:\s*([\s\S]+)/i);
+
+        const signal = signalMatch ? signalMatch[1].toUpperCase() : 'HOLD';
+        const confidence = confMatch ? confMatch[1] : '50';
+        const reason = reasonMatch ? reasonMatch[1].trim() : text;
+
+        lastSignal = signal.toLowerCase();
+        const sigEl = document.getElementById('aiSignal');
+        sigEl.textContent = signal === 'BUY' ? '🟢 BUY' : signal === 'SELL' ? '🔴 SELL' : '⏸️ HOLD';
+        sigEl.className = 'ai-signal ' + lastSignal;
+        document.getElementById('aiConfidence').textContent = 'Confidence: ' + confidence + '%';
+        document.getElementById('aiReason').textContent = reason;
+
+        addToHistory(signal, confidence, price, reason);
+
+        // Notifikasi kalau sinyal kuat
+        if (signal !== 'HOLD' && parseInt(confidence) >= 70) {
+            sendNotif(signal, price, confidence);
+        }
+    } catch (e) {
+        document.getElementById('aiSignal').textContent = '❌';
+        document.getElementById('aiSignal').className = 'ai-signal hold';
+        document.getElementById('aiConfidence').textContent = 'Gagal analisis';
+        document.getElementById('aiReason').textContent = e.message;
+    }
+}
+
+// ===== NOTIFIKASI =====
+function sendNotif(signal, price, confidence) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+        new Notification('🎯 Sinyal ' + signal, {
+            body: `XAUUSD @ ${price.toFixed(2)} · Confidence ${confidence}%`,
+            icon: 'https://cdn-icons-png.flaticon.com/512/2914/2914931.png'
+        });
+    } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(p => {
+            if (p === 'granted') sendNotif(signal, price, confidence);
+        });
+    }
+}
+
+function testNotif() {
+    if (Notification.permission === 'granted') {
+        new Notification('🔔 Tes Notifikasi', { body: 'Notifikasi berfungsi dengan baik!' });
+    } else {
+        Notification.requestPermission().then(p => {
+            if (p === 'granted') new Notification('🔔 Tes Notifikasi', { body: 'Notifikasi aktif!' });
+            else alert('Izin notifikasi ditolak');
+        });
+    }
+}
+
+// ===== RIWAYAT =====
+function addToHistory(signal, confidence, price, reason) {
+    let history = JSON.parse(localStorage.getItem('trading_history') || '[]');
+    history.unshift({
+        signal, confidence, price: price.toFixed(2),
+        reason: reason.substring(0, 100),
+        time: new Date().toLocaleString()
+    });
+    if (history.length > 30) history = history.slice(0, 30);
+    localStorage.setItem('trading_history', JSON.stringify(history));
+    renderHistory();
+}
+
+function renderHistory() {
+    const history = JSON.parse(localStorage.getItem('trading_history') || '[]');
+    const el = document.getElementById('historyList');
+    if (history.length === 0) { el.innerHTML = '<div class="empty">Belum ada sinyal</div>'; return; }
+    el.innerHTML = history.map(h => `
+        <div class="history-item ${h.signal.toLowerCase()}">
+            <div>
+                <div class="sig">${h.signal} · ${h.confidence}%</div>
+                <div class="time">${h.time}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:600;">$${h.price}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function clearHistory() {
+    if (!confirm('Hapus semua riwayat sinyal?')) return;
+    localStorage.removeItem('trading_history');
+    renderHistory();
+}
+
+// ===== SETTINGS =====
+function openSettings() {
+    document.getElementById('apiKeyInput').value = API_KEY;
+    document.getElementById('settingsModal').classList.add('active');
+}
+
+function saveSettings() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (!key) { alert('API Key tidak boleh kosong'); return; }
+    API_KEY = key;
+    localStorage.setItem('twelvedata_key', key);
+    document.getElementById('settingsModal').classList.remove('active');
+    alert('✅ API Key tersimpan! Memuat data...');
+    fetchChartData();
+    fetchPrice();
+}
+
+document.getElementById('settingsModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+});
+
+// ===== INIT & AUTO-REFRESH =====
+async function init() {
+    initChart();
+    renderHistory();
+
+    if (!API_KEY) {
+        setStatus('error', 'Set API Key dulu');
+        setTimeout(openSettings, 500);
+        return;
+    }
+
+    await fetchChartData();
+    await fetchPrice();
+    await analyzeNow();
+
+    // Auto-refresh harga tiap 30 detik
+    refreshPriceInterval = setInterval(fetchPrice, 30000);
+
+    // Auto-refresh chart & analisis tiap 5 menit
+    refreshChartInterval = setInterval(async () => {
+        await fetchChartData();
+        await analyzeNow();
+    }, 300000);
+}
+
+init();
+</script>
+</body>
+</html>
